@@ -3,6 +3,9 @@ project(project_by_sniffer)
 
 set(CMAKE_CXX_STANDARD 11)
 
+
+include(FindPCAP.cmake)
+
 set(SOURCE_FILES
         README.md main.cpp)
 
