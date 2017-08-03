@@ -15,7 +15,7 @@
 #define PRINT_BYTES_PER_LINE 16
 
 
-struct bpf_program filter_prog;
+struct bpf_program filter_prog; //Структура bpf_program является указателем на программу BPF-фильтра и используется функцией PacketSetBPF для установки фильтра в драйвере
 
 using namespace std;
 
@@ -67,33 +67,39 @@ static void  print_data_hex(const uint8_t* data, int size)
 
 
 
-
+//pcap_pkthdr - хранит информацию о пакете : время , длина пакета , длина порции или фрагмента
 static void handle_packet(uint8_t* user, const struct pcap_pkthdr *hdr, const uint8_t* bytes)
 {
 
-    struct iphdr* ip_header = (struct iphdr*)(bytes + sizeof(struct ethhdr));
-    struct sockaddr_in  source, dest;
+    (void)user;
 
-    memset(&source, 0, sizeof(source));
+    struct iphdr* ip_header = (struct iphdr*)(bytes + sizeof(struct ethhdr));//iphdr - структура для работы с ip заголовками
+    //ethhdr - струткура Ethernet-пакета
+    struct sockaddr_in  source, dest; // струткура sockaddr_in описывает сокет для работы с протоколами IP
+
+    memset(&source, 0, sizeof(source));//заполняем 0лями source
     memset(&dest, 0, sizeof(dest));
-    source.sin_addr.s_addr = ip_header->saddr;
-    dest.sin_addr.s_addr = ip_header->daddr;
+
+    //sin_addr - ip-адрес
+    source.sin_addr.s_addr = ip_header->saddr;// saddr (откуда)
+    dest.sin_addr.s_addr = ip_header->daddr;//daddr (куда)
 
     char source_ip[128];
     char dest_ip[128];
-    strncpy(source_ip, inet_ntoa(source.sin_addr), sizeof(source_ip));
+
+    strncpy(source_ip, inet_ntoa(source.sin_addr), sizeof(source_ip));//inet_ntoa - конвертирует адрес в стандартный формат интернет
     strncpy(dest_ip, inet_ntoa(dest.sin_addr), sizeof(dest_ip));
 
     int source_port = 0;
     int dest_port = 0;
     int data_size = 0;
-    int ip_header_size = ip_header->ihl * 4;
+    int ip_header_size = ip_header->ihl * 4;//ihl - The Internet Header Length - Поле Internet заголовка. Представляет собой длину Internet заголовка, измеренную в 32-битных словах.
     char* next_header = (char*)ip_header + ip_header_size;
 
     if(ip_header->protocol == IPPROTO_TCP)
     {
         struct tcphdr* tcp_header = (struct tcphdr*)next_header;
-        source_port = ntohs(tcp_header->source);
+        source_port = ntohs(tcp_header->source);//ntohs - преобразует сетевой порядок расположения байтов положительного короткого целого netshort в узловой порядок расположения байтов.
         dest_port = ntohs(tcp_header->dest);
         int tcp_header_size = tcp_header->doff * 4;
         data_size = hdr->len - sizeof(struct ethhdr) - ip_header_size - tcp_header_size;
@@ -157,7 +163,7 @@ int main()
     device = pcap_lookupdev(errbuf);//здесь берётся первый благоприятный для снифинга интерфейс
     //думаю, нужно переделать дать возможность выбора
 
-    pcap_t* pcap = pcap_open_live(device, BUFSIZ, 1, 1000, errbuf);
+    pcap_t* pcap = pcap_open_live(device, BUFSIZ, 1, 65535, errbuf);
 
     pcap_compile(pcap, &filter_prog, filter, 0, PCAP_NETMASK_UNKNOWN); //Компилируем фильтр
 
